@@ -1,5 +1,8 @@
+require("dotenv").config();
 const crypto = require("crypto");
-const secret = "pppppppppppppppppppppppppppppppp";
+
+const secret = process.env.ENCRYPTION_SECRET || "fallback_dev_secret_please_change";
+
 
 const encrypt = (password) => {
     const iv = Buffer.from(crypto.randomBytes(16));

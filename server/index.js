@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const app = express();
 const mysql = require("mysql2");
@@ -12,11 +13,12 @@ app.use(cors());
 app.use(express.json());
 
 const db = mysql.createConnection({
-  user: "pmuser",
-  host: "localhost",
-  password: "StrongPass123!",
-  database: "passwordmanager",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
 });
+
 
 // -------- USERS: REGISTER + LOGIN --------
 
