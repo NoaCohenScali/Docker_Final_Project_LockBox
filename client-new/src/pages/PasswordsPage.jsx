@@ -30,7 +30,7 @@ export default function PasswordsPage() {
     setLoading(true)
     setError('')
     try {
-      const response = await fetch('http://localhost:3001/showpasswords?user_id=${user_id}')
+      const response = await fetch(`http://localhost:3001/showpasswords?user_id=${user_id}`)
       const data = await response.json()
 
       if (!response.ok) {
@@ -149,9 +149,9 @@ export default function PasswordsPage() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    navigate('/')
-  }
+  localStorage.removeItem('userId')
+  navigate('/')
+}
 
   
 const toggleShowPassword = async (pwd) => {

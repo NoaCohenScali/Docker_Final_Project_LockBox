@@ -109,20 +109,28 @@ app.post("/addpassword", (req, res) => {
 });
 
 app.get("/showpasswords", (req, res) => {
-    const { user_id } = req.query.user_id;
-    if (!user_id) {
-      return res
-        .status(400)
-        .json({ message: "user_id is required" });
+  const user_id = req.query.user_id;  // <-- התיקון המרכזי
+
+  if (!user_id) {
+    return res
+      .status(400)
+      .json({ message: "user_id is required" });
+  }
+
+  db.query(
+    "SELECT * FROM passwords WHERE user_id = ?;",
+    [user_id],
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        return res.status(500).json({ message: "DB error" });
+      } else {
+        res.json(result);
+      }
     }
-  db.query("SELECT * FROM passwords WHERE user_id = ?;", [user_id], (err, result) => {
-    if (err) {
-      console.log(err);
-    } else {
-      res.json(result);
-    }
-  });
+  );
 });
+
 
 app.delete("/deletepassword/:id", (req, res) => {
   db.query(

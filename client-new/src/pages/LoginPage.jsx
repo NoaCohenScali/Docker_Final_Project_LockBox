@@ -35,7 +35,7 @@ export default function LoginPage() {
                 return
             }
 
-            localStorage.setItem('userId', data.user_id)
+            localStorage.setItem('userId', data.userId)
 
             navigate('/passwords')
         } catch (err) {
