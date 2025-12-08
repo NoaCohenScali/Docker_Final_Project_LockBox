@@ -4,10 +4,39 @@ const app = express();
 const mysql = require("mysql2");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const { encrypt, decrypt } = require("./EncryptionHandler");
 
 const PORT = 3001;
 const saltRounds = 10;
+function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).json({ message: "No token provided" });
+  }
+
+  const [scheme, token] = authHeader.split(" ");
+
+  if (scheme !== "Bearer" || !token) {
+    return res.status(401).json({ message: "Invalid auth header" });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      console.log(err);
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+
+    req.user = {
+      id: decoded.userId,
+      email: decoded.email,
+    };
+
+    next();
+  });
+}
+
 
 app.use(cors());
 app.use(express.json());
@@ -80,8 +109,13 @@ app.post("/login", (req, res) => {
         if (!same) {
           return res.status(401).json({ message: "Wrong password" });
         }
+        const token = jwt.sign(
+          { userId: user.id, email: user.email },
+          process.env.JWT_SECRET,
+          { expiresIn: "2h" }
+        );
 
-        res.json({ message: "Login ok", userId: user.id });
+        res.json({ message: "Login ok", userId: user.id, token });
       });
     }
   );
@@ -89,13 +123,16 @@ app.post("/login", (req, res) => {
 
 // -------- PASSWORDS API  --------
 
-app.post("/addpassword", (req, res) => {
-  const { password, title, user_id } = req.body;
-  if (!password || !title || !user_id) {
+app.post("/addpassword", authMiddleware, (req, res) => {
+  const { password, title } = req.body;
+  const user_id = req.user.id;  // מגיע מה־token
+
+  if (!password || !title) {
     return res
       .status(400)
-      .json({ message: "Password, title, and user_id are required" });
+      .json({ message: "Password and title are required" });
   }
+
   const hashedPassword = encrypt(password);
   db.query(
     "INSERT INTO passwords (passwords, title, iv, user_id) VALUES (?,?,?,?)",
@@ -103,21 +140,16 @@ app.post("/addpassword", (req, res) => {
     (err, result) => {
       if (err) {
         console.log(err);
+        return res.status(500).json({ message: "DB error" });
       } else {
-        res.json({message: "Success"});
+        res.json({ message: "Success" });
       }
     }
   );
 });
 
-app.get("/showpasswords", (req, res) => {
-  const user_id = req.query.user_id;  // <-- התיקון המרכזי
-
-  if (!user_id) {
-    return res
-      .status(400)
-      .json({ message: "user_id is required" });
-  }
+app.get("/showpasswords", authMiddleware, (req, res) => {
+  const user_id = req.user.id;
 
   db.query(
     "SELECT * FROM passwords WHERE user_id = ?;",
@@ -134,13 +166,16 @@ app.get("/showpasswords", (req, res) => {
 });
 
 
-app.delete("/deletepassword/:id", (req, res) => {
+app.delete("/deletepassword/:id", authMiddleware, (req, res) => {
+  const user_id = req.user.id;
+
   db.query(
-    "DELETE FROM passwords WHERE id = ?",
-    req.params.id,
+    "DELETE FROM passwords WHERE id = ? AND user_id = ?",
+    [req.params.id, user_id],
     (err, result) => {
       if (err) {
         console.log(err);
+        return res.status(500).json({ message: "DB error" });
       } else {
         res.send(result);
       }
@@ -148,14 +183,18 @@ app.delete("/deletepassword/:id", (req, res) => {
   );
 });
 
-app.put("/updatepassword/:id", (req, res) => {
+
+app.put("/updatepassword/:id", authMiddleware, (req, res) => {
   const hashedPassword = encrypt(req.body.password);
+  const user_id = req.user.id;
+
   db.query(
-    "UPDATE passwords SET passwords = ?, iv = ? WHERE id = ?",
-    [hashedPassword.password, hashedPassword.iv, req.params.id],
+    "UPDATE passwords SET passwords = ?, iv = ? WHERE id = ? AND user_id = ?",
+    [hashedPassword.password, hashedPassword.iv, req.params.id, user_id],
     (err, result) => {
       if (err) {
         console.log(err);
+        return res.status(500).json({ message: "DB error" });
       } else {
         res.send(result);
       }
@@ -163,8 +202,14 @@ app.put("/updatepassword/:id", (req, res) => {
   );
 });
 
-app.post("/decryptpassword", (req, res) => {
-  res.send(decrypt(req.body));
+app.post("/decryptpassword", authMiddleware, (req, res) => {
+  try {
+    const plain = decrypt(req.body);
+    res.send(plain);
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({ message: "Decrypt failed" });
+  }
 });
 
 app.listen(PORT, () => {

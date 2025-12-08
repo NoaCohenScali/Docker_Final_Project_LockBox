@@ -30,14 +30,17 @@ export default function LoginPage() {
                 return
             }
 
-            if (!data.userId) {
-                setError('Login response missing userId')
+            if (!data.userId || !data.token) {
+                setError('Login response missing data')
                 return
             }
 
             localStorage.setItem('userId', data.userId)
+            localStorage.setItem('token', data.token)
 
             navigate('/passwords')
+
+
         } catch (err) {
             setError('Connection error. Please try again.')
             console.error(err)

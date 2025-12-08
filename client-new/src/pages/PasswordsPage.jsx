@@ -13,27 +13,48 @@ export default function PasswordsPage() {
   const [editPassword, setEditPassword] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [showPassword, setShowPassword] = useState({})
-  const navigate = useNavigate()
-  const API_BASE = "http://localhost:3001"; 
-  const user_id = localStorage.getItem("userId");
 
-  // Fetch passwords on mount
+  const navigate = useNavigate()
+  const API_BASE = 'http://localhost:3001'
+  const token = localStorage.getItem('token')
+
+  // פונקציה לטיפול ב־401
+  const handleAuthFailure = (response, data) => {
+    if (response.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('userId')
+      setError(data?.message || 'החיבור שלך פג. אנא התחברי מחדש.')
+      navigate('/')
+      return true
+    }
+    return false
+  }
+
+  // טעינה ראשונית
   useEffect(() => {
-    if (!user_id) {
+    if (!token) {
       navigate('/')
       return
     }
     fetchPasswords()
-  }, [])
+  }, [token])
 
+  // --- Fetch Passwords ---
   const fetchPasswords = async () => {
     setLoading(true)
     setError('')
+
     try {
-      const response = await fetch(`http://localhost:3001/showpasswords?user_id=${user_id}`)
+      const response = await fetch(`${API_BASE}/showpasswords`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
       const data = await response.json()
 
       if (!response.ok) {
+        if (handleAuthFailure(response, data)) return
         setError(data.message || 'Failed to fetch passwords')
         return
       }
@@ -47,8 +68,10 @@ export default function PasswordsPage() {
     }
   }
 
+  // --- Add Password ---
   const handleAddPassword = async (e) => {
     e.preventDefault()
+
     if (!title.trim() || !password.trim()) {
       setError('Please fill in all fields')
       return
@@ -58,22 +81,23 @@ export default function PasswordsPage() {
     setError('')
 
     try {
-      const response = await fetch('http://localhost:3001/addpassword', {
+      const response = await fetch(`${API_BASE}/addpassword`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ title, password, user_id }),
+        body: JSON.stringify({ title, password }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
+        if (handleAuthFailure(response, data)) return
         setError(data.message || 'Failed to add password')
         return
       }
 
-      // Reset form and refresh list
       setTitle('')
       setPassword('')
       setShowAddForm(false)
@@ -86,6 +110,7 @@ export default function PasswordsPage() {
     }
   }
 
+  // --- Update Password ---
   const handleUpdatePassword = async (id) => {
     if (!editPassword.trim()) {
       setError('Please enter a password')
@@ -96,10 +121,11 @@ export default function PasswordsPage() {
     setError('')
 
     try {
-      const response = await fetch(`http://localhost:3001/updatepassword/${id}`, {
+      const response = await fetch(`${API_BASE}/updatepassword/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ password: editPassword }),
       })
@@ -107,6 +133,7 @@ export default function PasswordsPage() {
       const data = await response.json()
 
       if (!response.ok) {
+        if (handleAuthFailure(response, data)) return
         setError(data.message || 'Failed to update password')
         return
       }
@@ -122,6 +149,7 @@ export default function PasswordsPage() {
     }
   }
 
+  // --- Delete Password ---
   const handleDeletePassword = async (id) => {
     if (!window.confirm('Are you sure you want to delete this password?')) {
       return
@@ -130,13 +158,17 @@ export default function PasswordsPage() {
     setError('')
 
     try {
-      const response = await fetch(`http://localhost:3001/deletepassword/${id}`, {
+      const response = await fetch(`${API_BASE}/deletepassword/${id}`, {
         method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       })
 
       const data = await response.json()
 
       if (!response.ok) {
+        if (handleAuthFailure(response, data)) return
         setError(data.message || 'Failed to delete password')
         return
       }
@@ -148,51 +180,56 @@ export default function PasswordsPage() {
     }
   }
 
+  // --- Logout ---
   const handleLogout = () => {
-  localStorage.removeItem('userId')
-  navigate('/')
-}
-
-  
-const toggleShowPassword = async (pwd) => {
-  setError("")
-
-  if (showPassword[pwd.id]) {
-    setShowPassword((prev) => ({
-      ...prev,
-      [pwd.id]: null,
-    }))
-    return
+    localStorage.removeItem('userId')
+    localStorage.removeItem('token')
+    navigate('/')
   }
 
-  try {
-    const response = await fetch(`${API_BASE}/decryptpassword`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        password: pwd.passwords, 
-        iv: pwd.iv,              
-      }),
-    })
+  // --- Toggle Show Password ---
+  const toggleShowPassword = async (pwd) => {
+    setError('')
 
-    if (!response.ok) {
-      throw new Error("Failed to decrypt")
+    if (showPassword[pwd.id]) {
+      setShowPassword((prev) => ({
+        ...prev,
+        [pwd.id]: null,
+      }))
+      return
     }
 
-    const decrypted = await response.text()
+    try {
+      const response = await fetch(`${API_BASE}/decryptpassword`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          password: pwd.passwords,
+          iv: pwd.iv,
+        }),
+      })
 
-    setShowPassword((prev) => ({
-      ...prev,
-      [pwd.id]: decrypted,
-    }))
-  } catch (err) {
-    console.error(err)
-    setError("Failed to decrypt password")
+      const text = await response.text()
+
+      if (!response.ok) {
+        if (handleAuthFailure(response, { message: text })) return
+        throw new Error('Failed to decrypt')
+      }
+
+      setShowPassword((prev) => ({
+        ...prev,
+        [pwd.id]: text,
+      }))
+    } catch (err) {
+      console.error(err)
+      setError('Failed to decrypt password')
+    }
   }
-}
 
+  // --- JSX ---
   return (
     <div className="passwords-page">
       <header className="passwords-header">
@@ -265,7 +302,11 @@ const toggleShowPassword = async (pwd) => {
         </div>
 
         <div className="passwords-list">
-          {passwords.length === 0 ? (
+          {loading ? (
+            <div className="empty-state">
+              <p>Loading...</p>
+            </div>
+          ) : passwords.length === 0 ? (
             <div className="empty-state">
               <p>No passwords saved yet.</p>
               <p>Click "Add New Password" to get started!</p>
