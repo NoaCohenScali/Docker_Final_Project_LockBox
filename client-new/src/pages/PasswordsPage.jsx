@@ -17,7 +17,7 @@ export default function PasswordsPage() {
   const [showPassword, setShowPassword] = useState({})
 
   const navigate = useNavigate()
-  const API_BASE = 'http://localhost:3001'
+  const API_BASE = '/api'
   const token = localStorage.getItem('token')
 
   // מחולל סיסמאות חזקות
