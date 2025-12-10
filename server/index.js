@@ -1,13 +1,11 @@
 require("dotenv").config();
 const express = require("express");
 const app = express();
-const mysql = require("mysql2");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { encrypt, decrypt } = require("./EncryptionHandler");
 
-const PORT = 3001;
 const saltRounds = 10;
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -41,12 +39,8 @@ function authMiddleware(req, res, next) {
 app.use(cors());
 app.use(express.json());
 
-const db = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-});
+const db = require("./config/db");
+
 
 
 // -------- USERS: REGISTER + LOGIN --------
@@ -212,6 +206,6 @@ app.post("/decryptpassword", authMiddleware, (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(process.env.PORT, () => {
   console.log("Server is running");
 });
