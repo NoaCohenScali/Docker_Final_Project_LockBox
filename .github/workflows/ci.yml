@@ -24,3 +24,6 @@ jobs:
       - name: Run tests
         working-directory: server
         run: npm test
+
+      - name: Build Docker image (no push)
+        run: docker build -t lockBox-server:ci ./server
