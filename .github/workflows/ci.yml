@@ -26,4 +26,4 @@ jobs:
         run: npm test
 
       - name: Build Docker image (no push)
-        run: docker build -t lockBox-server:ci ./server
+        run: docker build -t lockbox-server:ci ./server
