@@ -100,25 +100,95 @@ app.post("/login", (req, res) => {
   });
 });
 
-/* passwords */
+/* -------- PASSWORDS API  --------*/
+
 app.post("/addpassword", authMiddleware, (req, res) => {
   const { password, title } = req.body;
-  const user_id = req.user.id;
+  const user_id = req.user.id;  // מגיע מה־token
 
   if (!password || !title) {
-    return res.status(400).json({ message: "Password and title are required" });
+    return res
+      .status(400)
+      .json({ message: "Password and title are required" });
   }
 
   const hashedPassword = encrypt(password);
-
   db.query(
     "INSERT INTO passwords (passwords, title, iv, user_id) VALUES (?,?,?,?)",
     [hashedPassword.password, title, hashedPassword.iv, user_id],
-    (err) => {
-      if (err) return res.status(500).json({ message: "DB error" });
-      res.json({ message: "Success" });
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        return res.status(500).json({ message: "DB error" });
+      } else {
+        res.json({ message: "Success" });
+      }
     }
   );
+});
+
+app.get("/showpasswords", authMiddleware, (req, res) => {
+  const user_id = req.user.id;
+
+  db.query(
+    "SELECT * FROM passwords WHERE user_id = ?;",
+    [user_id],
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        return res.status(500).json({ message: "DB error" });
+      } else {
+        res.json(result);
+      }
+    }
+  );
+});
+
+
+app.delete("/deletepassword/:id", authMiddleware, (req, res) => {
+  const user_id = req.user.id;
+
+  db.query(
+    "DELETE FROM passwords WHERE id = ? AND user_id = ?",
+    [req.params.id, user_id],
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        return res.status(500).json({ message: "DB error" });
+      } else {
+        res.send(result);
+      }
+    }
+  );
+});
+
+
+app.put("/updatepassword/:id", authMiddleware, (req, res) => {
+  const hashedPassword = encrypt(req.body.password);
+  const user_id = req.user.id;
+
+  db.query(
+    "UPDATE passwords SET passwords = ?, iv = ? WHERE id = ? AND user_id = ?",
+    [hashedPassword.password, hashedPassword.iv, req.params.id, user_id],
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        return res.status(500).json({ message: "DB error" });
+      } else {
+        res.send(result);
+      }
+    }
+  );
+});
+
+app.post("/decryptpassword", authMiddleware, (req, res) => {
+  try {
+    const plain = decrypt(req.body);
+    res.send(plain);
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({ message: "Decrypt failed" });
+  }
 });
 
 module.exports = app;
