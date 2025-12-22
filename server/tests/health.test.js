@@ -6,6 +6,7 @@ describe("Health check", () => {
     const res = await request(app).get("/health");
     // expect(res.statusCode).toBe(200);
     expect(res.statusCode).toBe(500);
+    //try
     expect(res.body.status).toBe("ok");
   });
 });
