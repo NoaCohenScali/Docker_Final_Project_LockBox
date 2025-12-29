@@ -81,6 +81,8 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE_SERVER }}:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE_SERVER }}:${{ steps.meta.outputs.TAG_SHA }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/password-manager-server:run-${{ github.run_number }}
+
 
       - name: Build and push nginx (with frontend inside)
         uses: docker/build-push-action@v6
@@ -91,6 +93,8 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE_NGINX }}:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE_NGINX }}:${{ steps.meta.outputs.TAG_SHA }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/password-manager-nginx:run-${{ github.run_number }}
+
      
   notify-failure:
     needs: [test, docker-build-and-push]
